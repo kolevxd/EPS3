@@ -32,122 +32,6 @@ namespace EditPlayerData.UI;
 
 public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
 {
-        // Add this method to the EditPlayerDataMenu class
-    private void ApplyMegaChanges()
-    {
-        // Set 100 quantity for all insta monkeys
-        foreach (var tower in Game.instance.GetTowerDetailModels())
-        {
-            for (int tier1 = 0; tier1 <= 5; tier1++)
-            {
-                for (int tier2 = 0; tier2 <= 5; tier2++)
-                {
-                    for (int tier3 = 0; tier3 <= 5; tier3++)
-                    {
-                        // Skip invalid tier combinations
-                        if (tier1 > 0 && tier2 > 0 && tier3 > 0) continue;
-                        if (tier1 > 2 && tier2 > 0) continue;
-                        if (tier1 > 0 && tier2 > 2) continue;
-                        if (tier2 > 2 && tier3 > 0) continue;
-                        if (tier2 > 0 && tier3 > 2) continue;
-                        if (tier3 > 2 && tier1 > 0) continue;
-                        if (tier3 > 0 && tier1 > 2) continue;
-                        if (tier1 + tier2 + tier3 > 7) continue;
-
-                        // Add 100 of each valid insta monkey
-                        GetPlayer().AddInstaMonkey(tower.towerId, tier1, tier2, tier3, 100, true);
-                    }
-                }
-            }
-        }
-
-        // Add 800,000 monkey money
-        GetPlayer().Data.monkeyMoney.Value = GetPlayer().Data.monkeyMoney.ValueInt + 800000;
-
-        // Unlock all maps
-        foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
-        {
-            if (!GetPlayer().Data.mapInfo.IsMapUnlocked(details.id))
-            {
-                GetPlayer().Data.mapInfo.UnlockMap(details.id);
-            }
-        }
-
-        // Unlock paid game modes
-        GetPlayer().Data.purchases.Add("btd6_doublecashmode"); // Double Cash
-        GetPlayer().Data.unlockedFastTrack = true; // Fast Track
-        GetPlayer().Data.purchases.Add("btd6_legendsrogue"); // Rogue Legends
-        GetPlayer().Data.purchases.Add("btd6_mapeditorsupporter_new"); // Map Editor
-
-        // Set player level to 20
-        var requiredXp = Game.instance.playerService.GetXpToReachLevel(20);
-        GetPlayer().Data.experience.Value = requiredXp;
-
-        // Unlock all towers and their upgrades
-        foreach (var tower in Game.instance.GetTowerDetailModels())
-        {
-            // Unlock tower if not already unlocked
-            if (!GetPlayer().Data.unlockedTowers.Contains(tower.towerId))
-            {
-                Game.instance.towerGoalUnlockManager.CompleteGoalForTower(tower.towerId);
-                GetPlayer().Data.UnlockTower(tower.towerId);
-
-                // Complete quests related to the tower
-                foreach (var quest in Game.instance.questTrackerManager.QuestData.TowerUnlockQuestsContainer.items
-                            .ToList()
-                            .Where(quest => quest.towerId == tower.towerId))
-                {
-                    var questData = Game.Player.GetQuestSaveData(quest.unlockQuestId);
-
-                    questData.hasSeenQuest = true;
-                    questData.hasSeenQuestCompleteDialogue = true;
-                    questData.hasCollectedRewards = true;
-
-                    foreach (var part in questData.questPartSaveData)
-                    {
-                        part.hasSeenQuestPart = true;
-                        part.hasSeenQuestCompleteDialogue = true;
-                        part.hasCollectedRewards = true;
-                        part.completed = true;
-
-                        foreach (var task in part.tasksSaveData)
-                        {
-                            task.hasCollectedRewards = true;
-                            task.completed = true;
-                        }
-                    }
-
-                    foreach (var task in questData.tasksSaveData)
-                    {
-                        task.hasCollectedRewards = true;
-                        task.completed = true;
-                    }
-
-                    Game.Player.SetQuestSaveData(questData);
-                }
-            }
-
-            // Add enough XP to unlock all upgrades
-            var towerXpData = GetPlayer().GetTowerXpData(tower.towerId);
-            if (towerXpData != null)
-            {
-                // Set a high XP value to ensure all upgrades are unlocked (5 million should be enough)
-                towerXpData.towerXp.Value = 5000000;
-            }
-            else
-            {
-                // Create new XP data for this tower if it doesn't exist
-                GetPlayer().Data.towerXp[tower.towerId] = new TowerXpDataModel(tower.towerId, 5000000);
-            }
-        }
-
-        // Save changes
-        Game.Player.SaveNow();
-        
-        // Update UI to reflect changes
-        UpdateVisibleEntries();
-    }
-    
     private static readonly Dictionary<string, List<PlayerDataSetting>> Settings = new()
     {
         {
@@ -499,11 +383,149 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     private string _category = "General";
     private int _pageIdx;
 
-    private ModHelperPanel _topArea;
+    private ModHelperPanel? _topArea;
 
     private static Btd6Player GetPlayer()
     {
         return Game.Player;
+    }
+
+    private void ApplyMegaChanges()
+    {
+        // Dodanie 100 sztuk każdej insta-małpki
+        foreach (var tower in Game.instance.GetTowerDetailModels())
+        {
+            for (int tier1 = 0; tier1 <= 5; tier1++)
+            {
+                for (int tier2 = 0; tier2 <= 5; tier2++)
+                {
+                    for (int tier3 = 0; tier3 <= 5; tier3++)
+                    {
+                        // Pomijamy nieprawidłowe kombinacje poziomów
+                        if (tier1 > 0 && tier2 > 0 && tier3 > 0) continue;
+                        if (tier1 > 2 && tier2 > 0) continue;
+                        if (tier1 > 0 && tier2 > 2) continue;
+                        if (tier2 > 2 && tier3 > 0) continue;
+                        if (tier2 > 0 && tier3 > 2) continue;
+                        if (tier3 > 2 && tier1 > 0) continue;
+                        if (tier3 > 0 && tier1 > 2) continue;
+                        if (tier1 + tier2 + tier3 > 7) continue;
+
+                        // Używanie API, które istnieje w kodzie
+                        if (Game.instance.model.GetTower(tower.towerId, tier1, tier2, tier3) != null)
+                        {
+                            GetPlayer().GetInstaTower(tower.towerId, new[] { tier1, tier2, tier3 }).Quantity += 100;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Dodaj 800,000 Monkey Money
+        GetPlayer().Data.monkeyMoney.Value += 800000;
+
+        // Odblokuj wszystkie mapy
+        foreach (var details in GameData.Instance.mapSet.StandardMaps.ToIl2CppList())
+        {
+            if (!GetPlayer().Data.mapInfo.IsMapUnlocked(details.id))
+            {
+                GetPlayer().Data.mapInfo.UnlockMap(details.id);
+            }
+        }
+
+        // Odblokuj płatne tryby gry
+        GetPlayer().Data.purchase.AddOneTimePurchaseItem("btd6_doublecashmode"); // Double Cash
+        GetPlayer().Data.unlockedFastTrack = true; // Fast Track
+        GetPlayer().Data.purchase.AddOneTimePurchaseItem("btd6_legendsrogue"); // Rogue Legends
+        GetPlayer().Data.purchase.AddOneTimePurchaseItem("btd6_mapeditorsupporter_new"); // Map Editor
+
+        // Ustaw poziom gracza na 20
+        var currentXp = GetPlayer().Data.xp.ValueInt;
+        var targetLevel = 20;
+        
+        // Ustawienie wystarczającej ilości XP dla poziomu 20
+        var rankInfoList = GameData.Instance.rankInfo.rankInfos;
+        if (targetLevel > 0 && targetLevel <= rankInfoList.Count)
+        {
+            var targetXp = rankInfoList[targetLevel - 1].totalXpNeeded;
+            GetPlayer().Data.xp.Value = targetXp;
+            GetPlayer().CheckAndCorrectLevelBasedOnPlayerXp();
+        }
+
+        // Odblokuj wszystkie wieże i ich ulepszenia
+        foreach (var tower in Game.instance.GetTowerDetailModels())
+        {
+            // Odblokuj wieżę jeśli nie jest jeszcze odblokowana
+            if (!GetPlayer().Data.unlockedTowers.Contains(tower.towerId))
+            {
+                Game.instance.towerGoalUnlockManager.CompleteGoalForTower(tower.towerId);
+                GetPlayer().Data.UnlockTower(tower.towerId);
+
+                // Ukończ zadania związane z wieżą
+                foreach (var quest in Game.instance.questTrackerManager.QuestData.TowerUnlockQuestsContainer.items
+                             .ToList()
+                             .Where(quest => quest.towerId == tower.towerId))
+                {
+                    var questData = Game.Player.GetQuestSaveData(quest.unlockQuestId);
+
+                    questData.hasSeenQuest = true;
+                    questData.hasSeenQuestCompleteDialogue = true;
+                    questData.hasCollectedRewards = true;
+
+                    foreach (var part in questData.questPartSaveData)
+                    {
+                        part.hasSeenQuestPart = true;
+                        part.hasSeenQuestCompleteDialogue = true;
+                        part.hasCollectedRewards = true;
+                        part.completed = true;
+
+                        foreach (var task in part.tasksSaveData)
+                        {
+                            task.hasCollectedRewards = true;
+                            task.completed = true;
+                        }
+                    }
+
+                    foreach (var task in questData.tasksSaveData)
+                    {
+                        task.hasCollectedRewards = true;
+                        task.completed = true;
+                    }
+
+                    Game.Player.SetQuestSaveData(questData);
+                }
+            }
+
+            // Dodaj dużo XP do każdej wieży
+            if (!GetPlayer().Data.towerXp.ContainsKey(tower.towerId))
+            {
+                GetPlayer().Data.towerXp[tower.towerId] = new KonFuze_NoShuffle(5000000);
+            }
+            else
+            {
+                GetPlayer().Data.towerXp[tower.towerId].Value = 5000000;
+            }
+            
+            // Odblokuj wszystkie ulepszenia
+            var model = Game.instance.model;
+            var upgrades = model.GetTower(tower.towerId, pathOneTier: 5).appliedUpgrades
+                .Concat(model.GetTower(tower.towerId, pathTwoTier: 5).appliedUpgrades)
+                .Concat(model.GetTower(tower.towerId, pathThreeTier: 5).appliedUpgrades);
+                
+            var paragon = Game.instance.model.GetParagonUpgradeForTowerId(tower.towerId);
+            var allUpgrades = paragon != null ? upgrades.Append(paragon.name) : upgrades;
+            
+            foreach (var upgrade in allUpgrades)
+            {
+                GetPlayer().Data.acquiredUpgrades.Add(upgrade);
+            }
+        }
+
+        // Zapisz zmiany
+        Game.Player.SaveNow();
+        
+        // Zaktualizuj interfejs, aby odzwierciedlić zmiany
+        UpdateVisibleEntries();
     }
 
     public override bool OnMenuOpened(Object data)
@@ -556,10 +578,13 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
             50).InputField;
         
         _topArea.AddPanel(new Info("Spacing", InfoPreset.Flex));
+        
+        // Dodajemy przycisk ACTIVATE ALL przed przyciskiem UnlockAll
         _topArea.AddButton(new Info("MegaButton", 650, 200), VanillaSprites.GreenBtnSquare, new Action(() =>
         {
             ApplyMegaChanges();
         })).AddText(new Info("MegaButtonText", 650, 200), "ACTIVATE ALL", 60);
+        
         _topArea.AddButton(new Info("UnlockAll", 650, 200), VanillaSprites.GreenBtnLong, new Action(() =>
         {
             Settings[_category].ForEach(s=>s.Unlock());
@@ -600,8 +625,8 @@ public class EditPlayerDataMenu : ModGameMenu<ContentBrowser>
     private void UpdateVisibleEntries()
     {
         var anyUnlockable = Settings[_category].Any(s => !s.IsUnlocked());
-        _topArea.GetDescendent<ModHelperButton>("UnlockAll").SetActive(anyUnlockable);
-        _topArea.GetDescendent<ModHelperPanel>("UnlockAll Filler").SetActive(!anyUnlockable);
+        _topArea?.GetDescendent<ModHelperButton>("UnlockAll")?.SetActive(anyUnlockable);
+        _topArea?.GetDescendent<ModHelperPanel>("UnlockAll Filler")?.SetActive(!anyUnlockable);
 
         var settings = Settings[_category].FindAll(s => s.Name.ContainsIgnoreCase(_searchValue));
         SetPage(_pageIdx, false);
